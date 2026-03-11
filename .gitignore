@@ -1,0 +1,10 @@
+/vendor
+/node_modules
+/.env
+/public/storage
+/storage/*.key
+/.idea
+/.vscode
+/.phpunit.result.cache
+.DS_Store
+Thumbs.db
