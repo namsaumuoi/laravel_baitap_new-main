@@ -7,84 +7,134 @@ use Illuminate\Http\Request;
 
 class CategoryController extends Controller
 {
-    /**
-     * Display a listing of the resource.
-     */
     public function index()
     {
-        //
-        $categories = Category::all();
-        return view('categories.index', ['categories' => $categories]);
+        $categories = Category::where('is_delete', 0)->get();
+        return view('category.index', ['categories' => $categories]);
     }
 
-    /**
-     * Show the form for creating a new resource.
-     */
     public function create()
     {
-        //
-        return view('categories.create');
+        $categories = Category::where('is_delete', 0)->get();
+        return view('category.create', ['categories' => $categories]);
     }
 
-    /**
-     * Store a newly created resource in storage.
-     */
     public function store(Request $request)
     {
-        //
-        Category::create([
-        'name' => $request->name,
-        'description' => $request->description,
-        'image' => $request->image,
-        'is_active' => $request->is_active ?? 1,
+        $request->validate([
+            'name'        => 'required|string|max:255',
+            'description' => 'nullable|string',
+            'image'       => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
+            'parent_id'   => 'nullable|exists:categories,id',
+            'is_active'   => 'nullable|boolean',
         ]);
-    
-        return redirect('/categories')->with('success', 'Category created!');
+
+        $imagePath = null;
+        if ($request->hasFile('image')) {
+            $imagePath = $request->file('image')->store('categories', 'public');
+        }
+
+        Category::create([
+            'name'        => $request->name,
+            'description' => $request->description,
+            'image'       => $imagePath,
+            'parent_id'   => $request->parent_id,
+            'is_active'   => $request->is_active ?? 1,
+        ]);
+
+        return redirect()->route('categories.index')->with('success', 'Thêm danh mục thành công!');
     }
 
-    /**
-     * Display the specified resource.
-     */
-    public function show(string $id)
-    {
-        //
-    }
-
-    /**
-     * Show the form for editing the specified resource.
-     */
-    public function edit(string $id)
-    {
-        //
-        $category = Category::find($id);
-        return view('categories.edit', ['category' => $category]);
-    }
-
-    /**
-     * Update the specified resource in storage.
-     */
     public function update(Request $request, string $id)
     {
-        $category = Category::find($id);
-        $category->update([
-            'name' => $request->name,
-            'description' => $request->description,
-            'image' => $request->image,
-            'is_active' => $request->is_active ?? 1,
+        $category = Category::findOrFail($id);
+
+        $request->validate([
+            'name'        => 'required|string|max:255',
+            'description' => 'nullable|string',
+            'image'       => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
+            'parent_id'   => 'nullable|exists:categories,id',
+            'is_active'   => 'nullable|boolean',
         ]);
-    
-        return redirect('/categories')->with('success', 'Category updated!');
+
+        $imagePath = $category->image; // giữ ảnh cũ
+        if ($request->hasFile('image')) {
+            // Xóa ảnh cũ nếu có
+            if ($category->image) {
+                \Storage::disk('public')->delete($category->image);
+            }
+            $imagePath = $request->file('image')->store('categories', 'public');
+        }
+
+        $category->update([
+            'name'        => $request->name,
+            'description' => $request->description,
+            'image'       => $imagePath,
+            'parent_id'   => $request->parent_id,
+            'is_active'   => $request->is_active ?? 1,
+        ]);
+
+        return redirect()->route('categories.index')->with('success', 'Cập nhật danh mục thành công!');
     }
 
-    /**
-     * Remove the specified resource from storage.
-     */
+    public function edit(string $id)
+    {
+        $category = Category::findOrFail($id);
+
+        // Lấy tất cả ID con cháu để loại khỏi danh sách chọn
+        $excludeIds = $this->getDescendantIds($category);
+        $excludeIds[] = $category->id; // loại chính nó
+
+        $categories = Category::where('is_delete', 0)
+            ->whereNotIn('id', $excludeIds)
+            ->get();
+
+        return view('category.edit', [
+            'category'   => $category,
+            'categories' => $categories,
+        ]);
+    }
+
+    // public function update(Request $request, string $id)
+    // {
+    //     $category = Category::findOrFail($id);
+
+    //     $request->validate([
+    //         'name'        => 'required|string|max:255',
+    //         'description' => 'nullable|string',
+    //         'image'       => 'nullable|string',
+    //         'parent_id'   => 'nullable|exists:categories,id',
+    //         'is_active'   => 'nullable|boolean',
+    //     ]);
+
+    //     $category->update([
+    //         'name'        => $request->name,
+    //         'description' => $request->description,
+    //         'image'       => $request->image,
+    //         'parent_id'   => $request->parent_id,
+    //         'is_active'   => $request->is_active ?? 1,
+    //     ]);
+
+    //     return redirect()->route('categories.index')->with('success', 'Cập nhật danh mục thành công!');
+    // }
+
     public function destroy(string $id)
     {
-        $category = Category::find($id);
+        $category = Category::findOrFail($id);
         $category->is_delete = 1;
         $category->save();
-    
-        return redirect('/categories')->with('success', 'Category deleted!');
+
+        return redirect()->route('categories.index')->with('success', 'Xóa danh mục thành công!');
+    }
+
+    // Hàm đệ quy lấy tất cả ID con cháu
+    private function getDescendantIds(Category $category): array
+    {
+        $ids = [];
+        foreach ($category->children as $child) {
+            $ids[] = $child->id;
+            $ids = array_merge($ids, $this->getDescendantIds($child));
+        }
+        return $ids;
     }
 }

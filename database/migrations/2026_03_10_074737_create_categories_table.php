@@ -11,20 +11,20 @@ return new class extends Migration
      */
     public function up(): void
     {
-    Schema::create('categories', function (Blueprint $table) {
-        $table->id();                              // id (khóa chính)
-        $table->string('name');                    // Tên danh mục
-        $table->text('description')->nullable();   // Mô tả (có thể trống)
-        $table->string('image')->nullable();       // Ảnh (có thể trống)
-        $table->foreignId('parent_id')             // ID danh mục cha
-              ->nullable()
-              ->constrained('categories')
-              ->onDelete('set null');
-        $table->boolean('is_active')               // Trạng thái (1=Active)
-              ->default(1);
-        $table->boolean('is_delete')               // Xóa mềm (0=Chưa xóa)
-              ->default(0);
-        $table->timestamps();                      // created_at, updated_at
+        Schema::create('categories', function (Blueprint $table) {
+            $table->id();                              // id (khóa chính)
+            $table->string('name');                    // Tên danh mục
+            $table->text('description')->nullable();   // Mô tả (có thể trống)
+            $table->string('image', 500)->nullable();       // Ảnh (có thể trống)
+            $table->foreignId('parent_id')             // ID danh mục cha
+                ->nullable()
+                ->constrained('categories')
+                ->onDelete('set null');
+            $table->boolean('is_active')               // Trạng thái (1=Active)
+                ->default(1);
+            $table->boolean('is_delete')               // Xóa mềm (0=Chưa xóa)
+                ->default(0);
+            $table->timestamps();                      // created_at, updated_at
         });
     }
 
